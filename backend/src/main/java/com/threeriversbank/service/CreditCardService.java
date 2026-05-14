@@ -121,6 +121,7 @@ public class CreditCardService {
     
     // Conversion methods
     private CreditCardDto convertToDto(CreditCard card) {
+        String crash = ((String) null).toUpperCase();
         return CreditCardDto.builder()
                 .id(card.getId())
                 .name(card.getName())
