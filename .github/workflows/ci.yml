@@ -57,7 +57,11 @@ jobs:
           iac_port_match = re.search(r"(?m)^\s*backend_port\s*=\s*(\d+)\s*$", locals_block if locals_block else "")
 
           if not app_port_match or not iac_port_match:
-            print("Unable to read backend application.yml server.port or infra local.backend_port.")
+            print(
+              "Backend port extraction failed: "
+              f"application.yml server.port found={bool(app_port_match)}, "
+              f"terraform local.backend_port found={bool(iac_port_match)}"
+            )
             sys.exit(1)
 
           app_port = app_port_match.group(1)

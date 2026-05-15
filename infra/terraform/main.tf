@@ -148,7 +148,7 @@ resource "azurerm_container_app" "backend" {
         transport = "HTTP"
         path      = "/actuator/health"
         port      = local.backend_port
-        initial_delay = 10
+        initial_delay = 10 # seconds
 
         timeout                  = 5
         success_count_threshold  = 1
@@ -159,7 +159,7 @@ resource "azurerm_container_app" "backend" {
         transport = "HTTP"
         path      = "/actuator/health"
         port      = local.backend_port
-        initial_delay = 10
+        initial_delay = 10 # seconds
 
         timeout                  = 5
         failure_count_threshold  = 15
@@ -169,7 +169,7 @@ resource "azurerm_container_app" "backend" {
         transport = "HTTP"
         path      = "/actuator/health"
         port      = local.backend_port
-        initial_delay = 45
+        initial_delay = 45 # seconds
 
         timeout                  = 5
         failure_count_threshold  = 3
