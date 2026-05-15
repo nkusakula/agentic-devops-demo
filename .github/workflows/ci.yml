@@ -27,42 +27,67 @@ jobs:
 
       - name: Validate backend port alignment (app vs IaC)
         run: |
-          APP_PORT=$(awk '
-            /^server:/ { in_server=1; next }
-            in_server && /^[^[:space:]]/ { in_server=0 }
-            in_server && $1=="port:" { print $2; exit }
-          ' backend/src/main/resources/application.yml)
+          python - <<'PY'
+          import pathlib
+          import re
+          import sys
 
-          IAC_PORT=$(sed -nE 's/^[[:space:]]*backend_port[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' infra/terraform/main.tf | head -n 1)
+          app_text = pathlib.Path("backend/src/main/resources/application.yml").read_text()
+          tf_text = pathlib.Path("infra/terraform/main.tf").read_text()
 
-          if [ -z "$APP_PORT" ] || [ -z "$IAC_PORT" ]; then
-            echo "Unable to read backend app port or IaC backend_port value."
-            exit 1
-          fi
+          server_block = re.search(r"(?ms)^server:\s*\n((?:^[ \t].*\n?)*)", app_text)
+          app_port_match = re.search(r"(?m)^\s*port:\s*(\d+)\s*(?:#.*)?$", server_block.group(1) if server_block else "")
+          locals_block = re.search(r"(?ms)^locals\s*\{(.*?)^\}", tf_text)
+          iac_port_match = re.search(r"(?m)^\s*backend_port\s*=\s*(\d+)\s*$", locals_block.group(1) if locals_block else "")
 
-          if [ "$APP_PORT" != "$IAC_PORT" ]; then
-            echo "Port mismatch: backend application.yml server.port=$APP_PORT but infra local.backend_port=$IAC_PORT"
-            exit 1
-          fi
+          if not app_port_match or not iac_port_match:
+            print("Unable to read backend application.yml server.port or infra local.backend_port.")
+            sys.exit(1)
 
-          BACKEND_BLOCK=$(awk '
-            /resource "azurerm_container_app" "backend" {/ { in_backend=1 }
-            /resource "azurerm_container_app" "frontend" {/ { in_backend=0 }
-            in_backend { print }
-          ' infra/terraform/main.tf)
+          app_port = app_port_match.group(1)
+          iac_port = iac_port_match.group(1)
 
-          for REQUIRED in \
-            "target_port                = local.backend_port" \
-            "readiness_probe" \
-            "startup_probe" \
-            "liveness_probe" \
-            "port      = local.backend_port"
-          do
-            if ! printf '%s\n' "$BACKEND_BLOCK" | grep -Fq "$REQUIRED"; then
-              echo "Missing backend IaC port guard requirement: $REQUIRED"
-              exit 1
-            fi
-          done
+          if app_port != iac_port:
+            print(f"Port mismatch: backend application.yml server.port={app_port} but infra local.backend_port={iac_port}")
+            sys.exit(1)
+
+          resource_start = tf_text.find('resource "azurerm_container_app" "backend" {')
+          if resource_start == -1:
+            print("Backend container app resource block not found in infra/terraform/main.tf")
+            sys.exit(1)
+
+          block_start = tf_text.find("{", resource_start)
+          depth = 0
+          end = None
+          for idx in range(block_start, len(tf_text)):
+            char = tf_text[idx]
+            if char == "{":
+              depth += 1
+            elif char == "}":
+              depth -= 1
+              if depth == 0:
+                end = idx + 1
+                break
+
+          if end is None:
+            print("Could not parse backend container app resource block in infra/terraform/main.tf")
+            sys.exit(1)
+
+          backend_block = tf_text[resource_start:end]
+          required_patterns = {
+            "target_port uses local.backend_port": r"(?m)^\s*target_port\s*=\s*local\.backend_port\s*$",
+            "readiness_probe uses local.backend_port": r"(?ms)readiness_probe\s*\{.*?\bport\s*=\s*local\.backend_port\b",
+            "startup_probe uses local.backend_port": r"(?ms)startup_probe\s*\{.*?\bport\s*=\s*local\.backend_port\b",
+            "liveness_probe uses local.backend_port": r"(?ms)liveness_probe\s*\{.*?\bport\s*=\s*local\.backend_port\b",
+          }
+
+          for label, pattern in required_patterns.items():
+            if not re.search(pattern, backend_block):
+              print(f"Missing backend IaC port guard requirement: {label}")
+              sys.exit(1)
+
+          print(f"Backend port alignment validated successfully (port {app_port}).")
+          PY
 
       - name: Build with Maven
         run: |
