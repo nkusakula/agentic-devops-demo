@@ -71,16 +71,18 @@ jobs:
           if backend_block is None:
             print("Backend container app resource block not found in infra/terraform/main.tf")
             sys.exit(1)
-          required_patterns = {
-            "target_port uses local.backend_port": r"(?m)^\s*target_port\s*=\s*local\.backend_port\s*$",
-            "readiness_probe uses local.backend_port": r"(?ms)readiness_probe\s*\{.*?\bport\s*=\s*local\.backend_port\b",
-            "startup_probe uses local.backend_port": r"(?ms)startup_probe\s*\{.*?\bport\s*=\s*local\.backend_port\b",
-            "liveness_probe uses local.backend_port": r"(?ms)liveness_probe\s*\{.*?\bport\s*=\s*local\.backend_port\b",
-          }
 
-          for label, pattern in required_patterns.items():
-            if not re.search(pattern, backend_block):
-              print(f"Missing backend IaC port guard requirement: {label}")
+          if not re.search(r"(?m)^\s*target_port\s*=\s*local\.backend_port\s*$", backend_block):
+            print("Missing backend IaC port guard requirement: target_port uses local.backend_port")
+            sys.exit(1)
+
+          for probe_name in ("readiness_probe", "startup_probe", "liveness_probe"):
+            probe_block = extract_brace_block(backend_block, f"{probe_name} {{")
+            if probe_block is None:
+              print(f"Missing backend IaC port guard requirement: {probe_name} block not found")
+              sys.exit(1)
+            if not re.search(r"(?m)^\s*port\s*=\s*local\.backend_port\s*$", probe_block):
+              print(f"Missing backend IaC port guard requirement: {probe_name} port uses local.backend_port")
               sys.exit(1)
 
           print(f"Backend port alignment validated successfully (port {app_port}).")
