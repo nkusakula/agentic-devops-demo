@@ -49,6 +49,7 @@ locals {
 
   # Resource naming
   resource_token = random_string.resource_suffix.result
+  backend_port   = 8080
 
   # Tags applied to all resources
   tags = merge(var.tags, {
@@ -146,7 +147,8 @@ resource "azurerm_container_app" "backend" {
       readiness_probe {
         transport = "HTTP"
         path      = "/actuator/health"
-        port      = 8080
+        port      = local.backend_port
+        initial_delay = 10
 
         timeout                  = 5
         success_count_threshold  = 1
@@ -156,10 +158,21 @@ resource "azurerm_container_app" "backend" {
       startup_probe {
         transport = "HTTP"
         path      = "/actuator/health"
-        port      = 8080
+        port      = local.backend_port
+        initial_delay = 10
 
         timeout                  = 5
-        failure_count_threshold  = 10
+        failure_count_threshold  = 15
+      }
+
+      liveness_probe {
+        transport = "HTTP"
+        path      = "/actuator/health"
+        port      = local.backend_port
+        initial_delay = 45
+
+        timeout                  = 5
+        failure_count_threshold  = 3
       }
 
       env {
@@ -192,7 +205,7 @@ resource "azurerm_container_app" "backend" {
   ingress {
     allow_insecure_connections = false
     external_enabled           = true
-    target_port                = 8080
+    target_port                = local.backend_port
 
     traffic_weight {
       latest_revision = true

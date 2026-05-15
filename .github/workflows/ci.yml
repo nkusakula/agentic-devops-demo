@@ -25,6 +25,45 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Validate backend port alignment (app vs IaC)
+        run: |
+          APP_PORT=$(awk '
+            /^server:/ { in_server=1; next }
+            in_server && /^[^[:space:]]/ { in_server=0 }
+            in_server && $1=="port:" { print $2; exit }
+          ' backend/src/main/resources/application.yml)
+
+          IAC_PORT=$(sed -nE 's/^[[:space:]]*backend_port[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' infra/terraform/main.tf | head -n 1)
+
+          if [ -z "$APP_PORT" ] || [ -z "$IAC_PORT" ]; then
+            echo "Unable to read backend app port or IaC backend_port value."
+            exit 1
+          fi
+
+          if [ "$APP_PORT" != "$IAC_PORT" ]; then
+            echo "Port mismatch: backend application.yml server.port=$APP_PORT but infra local.backend_port=$IAC_PORT"
+            exit 1
+          fi
+
+          BACKEND_BLOCK=$(awk '
+            /resource "azurerm_container_app" "backend" {/ { in_backend=1 }
+            /resource "azurerm_container_app" "frontend" {/ { in_backend=0 }
+            in_backend { print }
+          ' infra/terraform/main.tf)
+
+          for REQUIRED in \
+            "target_port                = local.backend_port" \
+            "readiness_probe" \
+            "startup_probe" \
+            "liveness_probe" \
+            "port      = local.backend_port"
+          do
+            if ! printf '%s\n' "$BACKEND_BLOCK" | grep -Fq "$REQUIRED"; then
+              echo "Missing backend IaC port guard requirement: $REQUIRED"
+              exit 1
+            fi
+          done
+
       - name: Build with Maven
         run: |
           cd backend
