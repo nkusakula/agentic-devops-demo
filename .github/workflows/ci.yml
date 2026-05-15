@@ -35,10 +35,26 @@ jobs:
           app_text = pathlib.Path("backend/src/main/resources/application.yml").read_text()
           tf_text = pathlib.Path("infra/terraform/main.tf").read_text()
 
-          server_block = re.search(r"(?ms)^server:\s*\n((?:^[ \t].*\n?)*)", app_text)
+          def extract_brace_block(text: str, marker: str) -> str | None:
+            start = text.find(marker)
+            if start == -1:
+              return None
+            block_start = text.find("{", start)
+            depth = 0
+            for idx in range(block_start, len(text)):
+              char = text[idx]
+              if char == "{":
+                depth += 1
+              elif char == "}":
+                depth -= 1
+                if depth == 0:
+                  return text[start:idx + 1]
+            return None
+
+          server_block = re.search(r"(?ms)^[ \t]*server:\s*\n((?:[ \t]+.*\n?)*)", app_text)
           app_port_match = re.search(r"(?m)^\s*port:\s*(\d+)\s*(?:#.*)?$", server_block.group(1) if server_block else "")
-          locals_block = re.search(r"(?ms)^locals\s*\{(.*?)^\}", tf_text)
-          iac_port_match = re.search(r"(?m)^\s*backend_port\s*=\s*(\d+)\s*$", locals_block.group(1) if locals_block else "")
+          locals_block = extract_brace_block(tf_text, "locals {")
+          iac_port_match = re.search(r"(?m)^\s*backend_port\s*=\s*(\d+)\s*$", locals_block if locals_block else "")
 
           if not app_port_match or not iac_port_match:
             print("Unable to read backend application.yml server.port or infra local.backend_port.")
@@ -51,29 +67,10 @@ jobs:
             print(f"Port mismatch: backend application.yml server.port={app_port} but infra local.backend_port={iac_port}")
             sys.exit(1)
 
-          resource_start = tf_text.find('resource "azurerm_container_app" "backend" {')
-          if resource_start == -1:
+          backend_block = extract_brace_block(tf_text, 'resource "azurerm_container_app" "backend" {')
+          if backend_block is None:
             print("Backend container app resource block not found in infra/terraform/main.tf")
             sys.exit(1)
-
-          block_start = tf_text.find("{", resource_start)
-          depth = 0
-          end = None
-          for idx in range(block_start, len(tf_text)):
-            char = tf_text[idx]
-            if char == "{":
-              depth += 1
-            elif char == "}":
-              depth -= 1
-              if depth == 0:
-                end = idx + 1
-                break
-
-          if end is None:
-            print("Could not parse backend container app resource block in infra/terraform/main.tf")
-            sys.exit(1)
-
-          backend_block = tf_text[resource_start:end]
           required_patterns = {
             "target_port uses local.backend_port": r"(?m)^\s*target_port\s*=\s*local\.backend_port\s*$",
             "readiness_probe uses local.backend_port": r"(?ms)readiness_probe\s*\{.*?\bport\s*=\s*local\.backend_port\b",
