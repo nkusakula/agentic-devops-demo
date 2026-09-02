@@ -252,7 +252,18 @@ The post-provision script creates three automated scheduled tasks that run proac
 | `three-rivers-config-drift` | Every 6 hours | Verifies environment variables, container resource limits, and image versions match expected values. Creates a GitHub issue via `incident-handler` if drift is detected. |
 | `three-rivers-daily-reliability-report` | Daily at 8am UTC | Summarizes 24-hour metrics, checks 7-day degradation trends, correlates recent GitHub PRs with metric changes, and provides reliability recommendations. |
 
-Task definitions live in `sre/sre-config/tasks/` and are automatically picked up by the post-provision script.
+Task definitions live in `sre/sre-config/tasks/` and are applied only when the post-provision script runs. `azd up` does not reconcile existing scheduled tasks.
+
+### Synchronize Scheduled Task Definitions
+
+After changing a file in `sre/sre-config/tasks/`, re-run the post-provision script from the `sre/` directory to replace the live task with the version-controlled definition:
+
+```bash
+cd sre
+bash scripts/post-provision.sh
+```
+
+The sync replaces a task with the same name. Confirm the task is **On** and that its schedule, description, and full prompt match the YAML definition.
 
 ### Verify Scheduled Tasks
 
