@@ -249,7 +249,7 @@ The post-provision script creates three automated scheduled tasks that run proac
 | Task | Schedule | Description |
 |---|---|---|
 | `three-rivers-health-check` | Every 30 minutes | Checks backend/frontend health, error rates, response times, container restarts, and infrastructure status. Escalates to `code-analyzer` + `incident-handler` if issues are found. |
-| `three-rivers-config-drift` | Every 6 hours | Verifies environment variables, container resource limits, and image versions match expected values. Creates a GitHub issue via `incident-handler` if drift is detected. |
+| `three-rivers-config-drift` | Every 6 hours | Verifies environment variables and container resource limits, compares each container app's image tag against the newest tag per ACR repository, and reviews the last 6 hours of resource group write operations (excluding `getAuthtoken/action`). Creates a GitHub issue via `incident-handler` only for confirmed mismatches. |
 | `three-rivers-daily-reliability-report` | Daily at 8am UTC | Summarizes 24-hour metrics, checks 7-day degradation trends, correlates recent GitHub PRs with metric changes, and provides reliability recommendations. |
 
 Task definitions live in `sre/sre-config/tasks/` and are automatically picked up by the post-provision script.

@@ -17,7 +17,19 @@ spec:
        - Backend: 0.5 vCPU, 1GB memory
        - Frontend: 0.25 vCPU, 0.5GB memory
 
-    3. Check container image versions match latest deployment
+    3. Verify container image versions match the newest tag in the Azure Container
+       Registry, checked per repository (backend and frontend separately):
+       - Compare each container app's active image tag against the newest tag
+         available in that repository
+       - Report a mismatch only when the active tag is older than the newest tag
 
-    4. If drift is detected, use the incident-handler subagent to create a
-       GitHub issue with details and recommended fixes.
+    4. Review write operations on the application resource group over the last
+       6 hours:
+       - List Azure Activity Log write operations for the resource group
+       - Exclude routine `getAuthtoken/action` entries
+       - Correlate any remaining write operations with the differences found above
+
+    5. Only if a mismatch is confirmed by the evidence gathered in steps 1-4,
+       use the incident-handler subagent to create a GitHub issue with the
+       details and recommended fixes. If every check matches the expected
+       configuration, report "no drift detected" and do not create an issue.
