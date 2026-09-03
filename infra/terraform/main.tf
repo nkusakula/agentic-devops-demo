@@ -186,6 +186,16 @@ resource "azurerm_container_app" "backend" {
         name  = "SPRING_PROFILES_ACTIVE"
         value = "production"
       }
+
+      env {
+        name  = "MANAGEMENT_ENDPOINT_HEALTH_ENABLED"
+        value = "true"
+      }
+
+      env {
+        name  = "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE"
+        value = "health,info"
+      }
     }
   }
 
