@@ -88,6 +88,30 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           ARM_USE_OIDC: "true"
 
+      - name: Verify backend configuration
+        run: |
+          ENV_NAME="${{ inputs.environment || 'banking-demo' }}"
+          RESOURCE_GROUP=$(azd env get-values --environment "$ENV_NAME" | awk -F= '$1 == "AZURE_RESOURCE_GROUP" { gsub(/"/, "", $2); print $2 }')
+          BACKEND_APP=$(azd env get-values --environment "$ENV_NAME" | awk -F= '$1 == "backend_service_name" { gsub(/"/, "", $2); print $2 }')
+
+          check_env() {
+            actual=$(az containerapp show \
+              --name "$BACKEND_APP" \
+              --resource-group "$RESOURCE_GROUP" \
+              --query "properties.template.containers[0].env[?name=='$1'] | [0].value" \
+              --output tsv)
+            if [ "$actual" != "$2" ]; then
+              echo "Configuration drift: $1 expected '$2', got '$actual'" >&2
+              exit 1
+            fi
+          }
+
+          check_env MANAGEMENT_ENDPOINT_HEALTH_ENABLED true
+          check_env MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE health,info
+
+          BACKEND_URL=$(azd env get-values --environment "$ENV_NAME" | awk -F= '$1 == "backend_uri" { gsub(/"/, "", $2); print $2 }')
+          curl --fail --silent --show-error "$BACKEND_URL/actuator/health" | grep -q '"status":"UP"'
+
       - name: Get Application URLs
         id: get-urls
         run: |
