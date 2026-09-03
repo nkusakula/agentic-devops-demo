@@ -13,11 +13,17 @@ spec:
        - SPRING_PROFILES_ACTIVE should be: production
        - SPRING_H2_CONSOLE_ENABLED should be: false
 
-    2. Verify container resource limits:
+    2. Compare the complete non-secret runtime environment-variable set against
+       infra/terraform/main.tf and azure.yaml. Flag a variable as drift when it
+       is present at runtime but not declared in either source, or when its value
+       conflicts with its declaration. Exclude only platform-injected variables
+       that are explicitly documented as exceptions.
+
+    3. Verify container resource limits:
        - Backend: 0.5 vCPU, 1GB memory
        - Frontend: 0.25 vCPU, 0.5GB memory
 
-    3. Check container image versions match latest deployment
+    4. Check container image versions match latest deployment
 
-    4. If drift is detected, use the incident-handler subagent to create a
+    5. If drift is detected, use the incident-handler subagent to create a
        GitHub issue with details and recommended fixes.
