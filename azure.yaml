@@ -12,6 +12,8 @@ services:
     env:
       BIAN_API_BASE_URL: "https://virtserver.swaggerhub.com/B154/BIAN/CreditCard/13.0.0"
       SPRING_H2_CONSOLE_ENABLED: "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info"
+      MANAGEMENT_ENDPOINT_HEALTH_ENABLED: "true"
       LOGGING_LEVEL_COM_THREERIVERSBANK: "INFO"
       SPRING_PROFILES_ACTIVE: "production"
   
