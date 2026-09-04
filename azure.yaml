@@ -14,6 +14,8 @@ services:
       SPRING_H2_CONSOLE_ENABLED: "false"
       LOGGING_LEVEL_COM_THREERIVERSBANK: "INFO"
       SPRING_PROFILES_ACTIVE: "production"
+      MANAGEMENT_ENDPOINT_HEALTH_ENABLED: "true"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info"
   
   frontend:
     project: ./frontend

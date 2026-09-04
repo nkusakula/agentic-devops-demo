@@ -35,6 +35,8 @@ SUB="${AZURE_SUBSCRIPTION_ID:-$(az account show --query id -o tsv 2>/dev/null)}"
 RG="${AZURE_RESOURCE_GROUP:-}"
 BACKEND="${AZURE_BACKEND_APP:-${backend_service_name:-}}"
 FRONTEND="${AZURE_FRONTEND_APP:-${frontend_service_name:-}}"
+HEALTH_ENDPOINT_ENABLED_BASELINE="true"
+HEALTH_ENDPOINTS_WEB_EXPOSURE_INCLUDE_BASELINE="health,info"
 
 # ── Colors ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -169,13 +171,13 @@ inject_health_check_disabled() {
 }
 
 rollback_health_check_disabled() {
-  info "Rolling back health-check-disabled: re-enabling health endpoint"
+  info "Rolling back health-check-disabled: restoring declared health endpoint baseline"
   az containerapp update \
     --name "$BACKEND" --resource-group "$RG" --subscription "$SUB" \
     --set-env-vars \
-      "MANAGEMENT_ENDPOINT_HEALTH_ENABLED=true" \
-      "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info"
-  ok "Health endpoint re-enabled"
+      "MANAGEMENT_ENDPOINT_HEALTH_ENABLED=${HEALTH_ENDPOINT_ENABLED_BASELINE}" \
+      "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=${HEALTH_ENDPOINTS_WEB_EXPOSURE_INCLUDE_BASELINE}"
+  ok "Declared health endpoint baseline restored"
 }
 
 # 6. bad-image-tag — Update backend container to a non-existent image tag
