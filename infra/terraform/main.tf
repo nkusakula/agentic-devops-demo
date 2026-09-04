@@ -178,6 +178,16 @@ resource "azurerm_container_app" "backend" {
       }
 
       env {
+        name  = "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE"
+        value = "health,info"
+      }
+
+      env {
+        name  = "MANAGEMENT_ENDPOINT_HEALTH_ENABLED"
+        value = "true"
+      }
+
+      env {
         name  = "LOGGING_LEVEL_ROOT"
         value = "INFO"
       }
