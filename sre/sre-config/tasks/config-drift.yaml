@@ -17,7 +17,16 @@ spec:
        - Backend: 0.5 vCPU, 1GB memory
        - Frontend: 0.25 vCPU, 0.5GB memory
 
-    3. Check container image versions match latest deployment
+    3. Check each active Container App image against the newest tag in its own
+       Azure Container Registry repository, ordered by push time. The active
+       backend and frontend image tags may differ when a deployment updates only
+       one service; do not compare their tags or revision timestamps to each other.
 
-    4. If drift is detected, use the incident-handler subagent to create a
+    4. Check Azure activity logs for write or delete operations during the six
+       hours ending at the scheduled execution time. A matching configuration
+       with no such events is no drift. Ignore Microsoft.App/containerApps/
+       getAuthtoken/action events, including token-generation conflicts, because
+       they do not modify configuration.
+
+    5. If drift is detected, use the incident-handler subagent to create a
        GitHub issue with details and recommended fixes.
