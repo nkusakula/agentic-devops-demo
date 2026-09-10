@@ -99,8 +99,8 @@ npm run dev                    # Vite dev server on :5173
 ### Azure Container Apps
 - **Backend Resources**: 0.5 vCPU, 1GB RAM
 - **Frontend Resources**: 0.25 vCPU, 0.5GB RAM
-- **Environment Variables**: `BIAN_API_URL`, `H2_CONSOLE_ENABLED=false` (prod), `LOGGING_LEVEL=INFO`
-- **CI/CD**: GitHub Actions workflow at `.github/workflows/build-deploy.yml`
+- **Backend Environment Variables**: `BIAN_API_BASE_URL`, `SPRING_H2_CONSOLE_ENABLED=false` (production), `SPRING_PROFILES_ACTIVE=production`, and `LOGGING_LEVEL_ROOT=INFO`. `LOGGING_LEVEL_COM_THREERIVERSBANK=INFO` is also supplied by `azure.yaml`.
+- **CI/CD**: GitHub Actions workflow at `.github/workflows/cd.yml`
 
 ## Common Pitfalls to Avoid
 
