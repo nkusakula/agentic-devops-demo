@@ -19,11 +19,9 @@
 
 extract_agent_prompt() {
   local yaml_file="$1"
-  local content
-  content=$(cat "$yaml_file")
-  echo "$content" | awk '
+  awk '
     /^  agentPrompt: \|/ { capture=1; next }
     capture && /^  [A-Za-z_]+:( |"|$)/ { capture=0 }
     capture { print }
-  ' | sed 's/^    //'
+  ' "$yaml_file" | sed 's/^    //'
 }
