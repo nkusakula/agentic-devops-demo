@@ -49,6 +49,10 @@ assert_contains "$CONFIG_DRIFT_YAML" "5. Query Container App WRITE activity for 
 assert_contains "$CONFIG_DRIFT_YAML" "6. If drift is detected, use the incident-handler subagent"
 
 # Every other task YAML must also retain content past its first blank line.
+# Assumption: as of this writing, every task prompt in sre-config/tasks/
+# uses numbered steps (this is the format documented in SRE-AGENT-SETUP.md).
+# If a future task prompt uses a different structure (e.g. free-form prose
+# with no numbered list), update this check accordingly.
 for f in "${PROJECT_DIR}"/sre-config/tasks/*.yaml; do
   [ "$f" = "$CONFIG_DRIFT_YAML" ] && continue
   prompt_lines=$(extract_agent_prompt "$f" | grep -c '^[0-9]\+\.' || true)

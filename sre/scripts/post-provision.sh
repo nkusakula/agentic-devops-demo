@@ -189,8 +189,10 @@ create_scheduled_task() {
 
   # Extract multi-line agentPrompt (indented block after "agentPrompt: |").
   # Captures every line — including blank lines — until the next top-level
-  # "key:" field or end of file, so multi-paragraph prompts aren't truncated
-  # at the first blank line.
+  # "key:" field (exactly 2-space indent, per the task YAML's fixed
+  # structure) or end of file, so multi-paragraph prompts aren't truncated
+  # at the first blank line. Prompt body lines are always indented 4+
+  # spaces, so a bare 2-space "word:" line only ever marks a sibling key.
   agent_prompt=$(echo "$content" | awk '
     /^  agentPrompt: \|/ { capture=1; next }
     capture && /^  [A-Za-z_]+:/ { capture=0 }
