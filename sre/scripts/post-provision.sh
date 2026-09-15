@@ -187,8 +187,15 @@ create_scheduled_task() {
   cron_expr=$(echo "$content" | sed -n 's/^  cronExpression: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/p' | head -1)
   agent_name=$(echo "$content" | sed -n 's/^  agent: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/p' | head -1)
 
-  # Extract multi-line agentPrompt (indented block after "agentPrompt: |")
-  agent_prompt=$(echo "$content" | sed -n '/^  agentPrompt: |/,/^  [a-z_]*:\|^$/{ /^  agentPrompt:/d; /^  [a-z_]*:/d; /^$/d; p; }' | sed 's/^    //')
+  # Extract multi-line agentPrompt (indented block after "agentPrompt: |").
+  # Captures every line — including blank lines — until the next top-level
+  # "key:" field or end of file, so multi-paragraph prompts aren't truncated
+  # at the first blank line.
+  agent_prompt=$(echo "$content" | awk '
+    /^  agentPrompt: \|/ { capture=1; next }
+    capture && /^  [A-Za-z_]+:/ { capture=0 }
+    capture { print }
+  ' | sed 's/^    //')
 
   if [ -z "$task_name" ] || [ -z "$cron_expr" ] || [ -z "$agent_prompt" ]; then
     echo "   ⚠️  Could not parse task YAML: ${yaml_file}"
