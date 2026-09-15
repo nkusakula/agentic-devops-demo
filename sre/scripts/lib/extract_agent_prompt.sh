@@ -15,6 +15,13 @@
 # The key-termination pattern additionally requires the colon be followed
 # by a space, quote, or end-of-line to reduce false-positive matches on
 # prompt content that merely resembles a key.
+#
+# INVARIANT: this only works correctly if "agentPrompt: |" is the LAST
+# field in the YAML "spec:" map (as it is in every file under
+# sre-config/tasks/ today) — otherwise the block would run past the end
+# of the intended prompt. test-scheduled-task-prompt-parsing.sh asserts
+# this invariant for every task YAML; any new caller of this helper
+# should keep that check in place or add an equivalent guard.
 # =============================================================================
 
 extract_agent_prompt() {
