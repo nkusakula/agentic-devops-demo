@@ -28,7 +28,9 @@ spec:
 
     5. Query Container App WRITE activity for the previous 7 days. Filter
        server-side by operation name before evaluating results; unfiltered
-       output can be truncated by high-volume getAuthtoken actions:
+       output can be truncated by high-volume getAuthtoken actions. Use the
+       backend and frontend Container App resource IDs resolved in step 1
+       as <backendResourceId> and <frontendResourceId> below:
        ```bash
        az monitor activity-log list --resource-id <backendResourceId> --offset 7d \
          --query "[?contains(operationName.value, 'write')]" -o json
