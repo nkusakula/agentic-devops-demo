@@ -26,13 +26,14 @@ spec:
        - Exactly one revision is active with 100 percent traffic.
        - The active revision image equals the app template image.
 
-    5. Query Container App WRITE activity for the previous 7 days. Filter
-       server-side by operation name before evaluating results; unfiltered
-       output can be truncated by high-volume getAuthtoken actions:
+    5. Query Container App WRITE activity for the previous 7 days. Azure CLI
+       applies `--query` client-side and returns only 50 records by default, so
+       request a bounded complete result set before filtering out high-volume
+       getAuthtoken actions:
        ```bash
-       az monitor activity-log list --resource-id <backendResourceId> --offset 7d \
+       az monitor activity-log list --resource-id <backendResourceId> --offset 7d --max-events 10000 \
          --query "[?contains(operationName.value, 'write')]" -o json
-       az monitor activity-log list --resource-id <frontendResourceId> --offset 7d \
+       az monitor activity-log list --resource-id <frontendResourceId> --offset 7d --max-events 10000 \
          --query "[?contains(operationName.value, 'write')]" -o json
        ```
        Treat a successful write as potential drift unless it is attributable to
