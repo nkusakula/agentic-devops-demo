@@ -52,7 +52,7 @@ assert_contains "$CONFIG_DRIFT_YAML" "6. If drift is detected, use the incident-
 # last field in the YAML "spec:" map, so we assert that invariant first
 # (i.e. no other 2-space-indented key follows the "agentPrompt: |" line).
 for f in "${PROJECT_DIR}"/sre-config/tasks/*.yaml; do
-  trailing_keys=$(awk '/^  agentPrompt: \|/ { found=1; next } found && /^  [A-Za-z_]+:( |"|$)/ { print }' "$f")
+  trailing_keys=$(awk -v pat="$TOP_LEVEL_KEY_PATTERN" '/^  agentPrompt: \|/ { found=1; next } found && $0 ~ pat { print }' "$f")
   if [ -n "$trailing_keys" ]; then
     echo "   ❌ ${f}: found key(s) after agentPrompt, raw-line oracle is invalid: ${trailing_keys}"
     FAILURES=$((FAILURES + 1))

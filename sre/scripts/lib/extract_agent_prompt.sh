@@ -24,11 +24,16 @@
 # should keep that check in place or add an equivalent guard.
 # =============================================================================
 
+# Shared with test-scheduled-task-prompt-parsing.sh so the invariant check
+# (agentPrompt is the last field) and the extractor use the exact same
+# top-level-key pattern and can't silently drift out of sync.
+TOP_LEVEL_KEY_PATTERN='^  [A-Za-z_]+:( |"|$)'
+
 extract_agent_prompt() {
   local yaml_file="$1"
-  awk '
+  awk -v pat="$TOP_LEVEL_KEY_PATTERN" '
     /^  agentPrompt: \|/ { capture=1; next }
-    capture && /^  [A-Za-z_]+:( |"|$)/ { capture=0 }
+    capture && $0 ~ pat { capture=0 }
     capture { print }
   ' "$yaml_file" | sed 's/^    //'
 }
