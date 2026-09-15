@@ -26,10 +26,18 @@ spec:
        - Exactly one revision is active with 100 percent traffic.
        - The active revision image equals the app template image.
 
-    5. Query Container App WRITE activity for the previous 7 days. Treat a
-       successful write as potential drift unless it is attributable to the
-       expected deployment process. Record timestamp, caller, correlation ID,
-       resource, and changed property where available.
+    5. Query Container App WRITE activity for the previous 7 days. Filter
+       server-side by operation name before evaluating results; unfiltered
+       output can be truncated by high-volume getAuthtoken actions:
+       ```bash
+       az monitor activity-log list --resource-id <backendResourceId> --offset 7d \
+         --query "[?contains(operationName.value, 'write')]" -o json
+       az monitor activity-log list --resource-id <frontendResourceId> --offset 7d \
+         --query "[?contains(operationName.value, 'write')]" -o json
+       ```
+       Treat a successful write as potential drift unless it is attributable to
+       the expected deployment process. Record timestamp, caller, correlation
+       ID, resource, and changed property where available.
 
     6. If drift is detected, use the incident-handler subagent to create a
        GitHub issue. Include expected and observed values, affected resource,
