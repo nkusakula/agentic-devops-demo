@@ -29,6 +29,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
+# shellcheck source=lib/extract_agent_prompt.sh
+source "$SCRIPT_DIR/lib/extract_agent_prompt.sh"
+
 # Parse flags
 RETRY_MODE=""
 STATUS_ONLY=""
@@ -187,17 +190,9 @@ create_scheduled_task() {
   cron_expr=$(echo "$content" | sed -n 's/^  cronExpression: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/p' | head -1)
   agent_name=$(echo "$content" | sed -n 's/^  agent: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/p' | head -1)
 
-  # Extract multi-line agentPrompt (indented block after "agentPrompt: |").
-  # Captures every line — including blank lines — until the next top-level
-  # "key:" field (exactly 2-space indent, per the task YAML's fixed
-  # structure) or end of file, so multi-paragraph prompts aren't truncated
-  # at the first blank line. Prompt body lines are always indented 4+
-  # spaces, so a bare 2-space "word:" line only ever marks a sibling key.
-  agent_prompt=$(echo "$content" | awk '
-    /^  agentPrompt: \|/ { capture=1; next }
-    capture && /^  [A-Za-z_]+:( |"|$)/ { capture=0 }
-    capture { print }
-  ' | sed 's/^    //')
+  # Extract multi-line agentPrompt via the shared helper (see
+  # lib/extract_agent_prompt.sh for details and rationale).
+  agent_prompt=$(extract_agent_prompt "$yaml_file")
 
   if [ -z "$task_name" ] || [ -z "$cron_expr" ] || [ -z "$agent_prompt" ]; then
     echo "   ⚠️  Could not parse task YAML: ${yaml_file}"

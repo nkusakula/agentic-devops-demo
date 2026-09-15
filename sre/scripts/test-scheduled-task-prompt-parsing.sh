@@ -15,18 +15,10 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-FAILURES=0
+# shellcheck source=lib/extract_agent_prompt.sh
+source "$SCRIPT_DIR/lib/extract_agent_prompt.sh"
 
-extract_agent_prompt() {
-  local yaml_file="$1"
-  local content
-  content=$(cat "$yaml_file")
-  echo "$content" | awk '
-    /^  agentPrompt: \|/ { capture=1; next }
-    capture && /^  [A-Za-z_]+:( |"|$)/ { capture=0 }
-    capture { print }
-  ' | sed 's/^    //'
-}
+FAILURES=0
 
 assert_contains() {
   local yaml_file="$1" needle="$2" prompt
@@ -49,11 +41,13 @@ assert_contains "$CONFIG_DRIFT_YAML" "5. Query Container App WRITE activity for 
 assert_contains "$CONFIG_DRIFT_YAML" "6. If drift is detected, use the incident-handler subagent"
 
 # Every task YAML must retain its full agentPrompt block, not just the
-# intro line before the first blank line. This check is format-agnostic:
-# it counts every raw line from "agentPrompt: |" to end-of-file (the field
-# is always last in these task YAMLs) and asserts the extractor returns
-# the same number of lines, so it directly detects the historical
-# truncation bug regardless of whether a prompt uses numbered steps.
+# intro line before the first blank line. This check is format-agnostic
+# and independent of extract_agent_prompt's key-termination regex: it
+# counts every raw line from "agentPrompt: |" to end-of-file (the field
+# is always last in these task YAMLs) using a simple marker-based tail,
+# then asserts the extractor returns the same number of lines. This
+# directly detects the historical truncation bug regardless of whether
+# a prompt uses numbered steps.
 for f in "${PROJECT_DIR}"/sre-config/tasks/*.yaml; do
   raw_lines=$(awk '/^  agentPrompt: \|/ { found=1; next } found { print }' "$f" | wc -l)
   extracted_lines=$(extract_agent_prompt "$f" | wc -l)
