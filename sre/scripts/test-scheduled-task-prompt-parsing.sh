@@ -43,12 +43,22 @@ assert_contains "$CONFIG_DRIFT_YAML" "6. If drift is detected, use the incident-
 # Every task YAML must retain its full agentPrompt block, not just the
 # intro line before the first blank line. This check is format-agnostic
 # and independent of extract_agent_prompt's key-termination regex: it
-# counts every raw line from "agentPrompt: |" to end-of-file (the field
-# is always last in these task YAMLs) using a simple marker-based tail,
-# then asserts the extractor returns the same number of lines. This
-# directly detects the historical truncation bug regardless of whether
-# a prompt uses numbered steps.
+# counts every raw line from "agentPrompt: |" to end-of-file and asserts
+# the extractor returns the same number of lines. This directly detects
+# the historical truncation bug regardless of whether a prompt uses
+# numbered steps.
+#
+# The raw-line count is only a valid oracle while agentPrompt remains the
+# last field in the YAML "spec:" map, so we assert that invariant first
+# (i.e. no other 2-space-indented key follows the "agentPrompt: |" line).
 for f in "${PROJECT_DIR}"/sre-config/tasks/*.yaml; do
+  trailing_keys=$(awk '/^  agentPrompt: \|/ { found=1; next } found && /^  [A-Za-z_]+:( |"|$)/ { print }' "$f")
+  if [ -n "$trailing_keys" ]; then
+    echo "   ❌ ${f}: found key(s) after agentPrompt, raw-line oracle is invalid: ${trailing_keys}"
+    FAILURES=$((FAILURES + 1))
+    continue
+  fi
+
   raw_lines=$(awk '/^  agentPrompt: \|/ { found=1; next } found { print }' "$f" | wc -l)
   extracted_lines=$(extract_agent_prompt "$f" | wc -l)
   if [ "$extracted_lines" -ne "$raw_lines" ]; then
