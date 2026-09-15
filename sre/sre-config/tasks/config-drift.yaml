@@ -8,16 +8,31 @@ spec:
   agentPrompt: |
     Check for configuration drift in the Three Rivers Bank deployment:
 
-    1. Verify environment variables match expected values:
-       - BIAN_API_BASE_URL should be: https://virtserver.swaggerhub.com/B154/BIAN/CreditCard/13.0.0
-       - SPRING_PROFILES_ACTIVE should be: production
-       - SPRING_H2_CONSOLE_ENABLED should be: false
+    1. Resolve the backend and frontend Container Apps by the tags
+       application=three-rivers-bank and azd-service-name={backend,frontend}.
 
-    2. Verify container resource limits:
-       - Backend: 0.5 vCPU, 1GB memory
-       - Frontend: 0.25 vCPU, 0.5GB memory
+    2. Verify backend environment variables match expected values:
+       - BIAN_API_BASE_URL: https://virtserver.swaggerhub.com/B154/BIAN/CreditCard/13.0.0
+       - SPRING_PROFILES_ACTIVE: production
+       - SPRING_H2_CONSOLE_ENABLED: false
+       - CORS_ALLOWED_ORIGINS includes the current frontend ingress FQDN.
 
-    3. Check container image versions match latest deployment
+    3. Verify container resource limits:
+       - Backend: 0.5 vCPU, 1Gi memory, minimum 2 replicas, maximum 3 replicas.
+       - Frontend: 0.25 vCPU, 0.5Gi memory, minimum 1 replica, maximum 3 replicas.
 
-    4. If drift is detected, use the incident-handler subagent to create a
-       GitHub issue with details and recommended fixes.
+    4. Verify deployment revision and image consistency for both apps:
+       - properties.latestRevisionName equals properties.latestReadyRevisionName.
+       - Exactly one revision is active with 100 percent traffic.
+       - The active revision image equals the app template image.
+
+    5. Query Container App WRITE activity for the previous 7 days. Treat a
+       successful write as potential drift unless it is attributable to the
+       expected deployment process. Record timestamp, caller, correlation ID,
+       resource, and changed property where available.
+
+    6. If drift is detected, use the incident-handler subagent to create a
+       GitHub issue. Include expected and observed values, affected resource,
+       active revision and image, relevant activity-log evidence, impact, and
+       a minimal recommended remediation. If no drift is detected, report the
+       checks and time window used.
