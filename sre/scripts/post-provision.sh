@@ -195,7 +195,7 @@ create_scheduled_task() {
   # spaces, so a bare 2-space "word:" line only ever marks a sibling key.
   agent_prompt=$(echo "$content" | awk '
     /^  agentPrompt: \|/ { capture=1; next }
-    capture && /^  [A-Za-z_]+:/ { capture=0 }
+    capture && /^  [A-Za-z_]+:( |"|$)/ { capture=0 }
     capture { print }
   ' | sed 's/^    //')
 

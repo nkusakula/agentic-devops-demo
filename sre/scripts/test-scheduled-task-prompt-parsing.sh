@@ -23,7 +23,7 @@ extract_agent_prompt() {
   content=$(cat "$yaml_file")
   echo "$content" | awk '
     /^  agentPrompt: \|/ { capture=1; next }
-    capture && /^  [A-Za-z_]+:/ { capture=0 }
+    capture && /^  [A-Za-z_]+:( |"|$)/ { capture=0 }
     capture { print }
   ' | sed 's/^    //'
 }
@@ -48,16 +48,17 @@ assert_contains "$CONFIG_DRIFT_YAML" "4. Verify deployment revision and image co
 assert_contains "$CONFIG_DRIFT_YAML" "5. Query Container App WRITE activity for the previous 7 days"
 assert_contains "$CONFIG_DRIFT_YAML" "6. If drift is detected, use the incident-handler subagent"
 
-# Every other task YAML must also retain content past its first blank line.
-# Assumption: as of this writing, every task prompt in sre-config/tasks/
-# uses numbered steps (this is the format documented in SRE-AGENT-SETUP.md).
-# If a future task prompt uses a different structure (e.g. free-form prose
-# with no numbered list), update this check accordingly.
+# Every task YAML must retain its full agentPrompt block, not just the
+# intro line before the first blank line. This check is format-agnostic:
+# it counts every raw line from "agentPrompt: |" to end-of-file (the field
+# is always last in these task YAMLs) and asserts the extractor returns
+# the same number of lines, so it directly detects the historical
+# truncation bug regardless of whether a prompt uses numbered steps.
 for f in "${PROJECT_DIR}"/sre-config/tasks/*.yaml; do
-  [ "$f" = "$CONFIG_DRIFT_YAML" ] && continue
-  prompt_lines=$(extract_agent_prompt "$f" | grep -c '^[0-9]\+\.' || true)
-  if [ "$prompt_lines" -lt 2 ]; then
-    echo "   ❌ ${f}: expected multiple numbered steps, found ${prompt_lines}"
+  raw_lines=$(awk '/^  agentPrompt: \|/ { found=1; next } found { print }' "$f" | wc -l)
+  extracted_lines=$(extract_agent_prompt "$f" | wc -l)
+  if [ "$extracted_lines" -ne "$raw_lines" ]; then
+    echo "   ❌ ${f}: extracted ${extracted_lines} line(s), expected ${raw_lines} (possible truncation)"
     FAILURES=$((FAILURES + 1))
   fi
 done
