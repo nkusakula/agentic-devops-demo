@@ -10,8 +10,8 @@ spec:
 
     1. Check the backend container app health:
        - GET the public HTTPS /actuator/health endpoint; require HTTP 200 and overall UP, including database and readiness. If the platform endpoint validator disagrees, trust neither alone: compare the direct probe, replicas, and logs before declaring an outage.
-       - Check per-replica RestartCount deltas over the last 15 minutes (the metric is cumulative); alert if any replica actually restarted.
-       - Compute HTTP 2xx / all Requests from statusCodeCategory over the last 30 minutes. Report numerator, denominator, and 4xx/5xx breakdown. Investigate results below 95%, but treat isolated 4xx in a low-volume sample as inconclusive until the route/caller or user impact is established.
+       - Check per-replica RestartCount deltas over the last 15 minutes (the metric is cumulative); alert if any replica actually restarted. If podName-filtered queries return no series, retry without the dimension; an aggregate zero supports no observed restarts but does not establish per-replica continuity or exclude replica replacement. State that limitation.
+       - Compute HTTP 2xx / all Requests from statusCodeCategory over the last 30 minutes. Report numerator, denominator, and 4xx/5xx breakdown. Investigate results below 95%, but treat isolated 4xx in a low-volume sample as inconclusive until the route/caller or user impact is established. Query statusCode to identify the exact code; status-code metrics do not identify the route. A backend root 404 can coexist with a healthy /actuator/health, but do not attribute a historical 404 to root without request-path evidence.
        - Check response time p95 against 2 seconds only from request-duration telemetry with enough samples. ResponseTime average/maximum is not p95; if duration telemetry is absent, report p95 as unavailable rather than passing the check.
        - Verify CPU and memory utilization against the container allocations.
 
