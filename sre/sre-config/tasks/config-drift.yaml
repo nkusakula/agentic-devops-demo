@@ -20,10 +20,14 @@ spec:
     3. For each app, record its configured image and the image, creation time,
        and traffic weight of its active revision. Compare the image tag or digest
        with the latest successful deployment record that names the deployed
-       artifact. A newest registry tag or workflow commit alone does not prove
-       which image was deployed. If no artifact-level baseline can be read
-       (including when registry access is denied), report the serving image
-       and mark deployment-version comparison unverified, not drift.
+       artifact for this environment and app. A newest registry tag or workflow
+       commit alone does not prove which image was deployed. If registry access
+       is denied, do not retry with the same identity; inspect successful runs
+       of .github/workflows/cd.yml or deployment records for an artifact-level
+       baseline. Verify the run targeted this environment, named the exact
+       deployed image, and finished before the serving revision was created.
+       If no such baseline can be read, report the serving image and mark the
+       deployment-version comparison unverified, not drift.
 
     4. Compare runtime settings with infra/terraform/main.tf and azure.yaml.
        LOGGING_LEVEL_COM_THREERIVERSBANK=INFO is declared in azure.yaml.
