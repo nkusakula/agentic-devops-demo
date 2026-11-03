@@ -6,27 +6,24 @@ spec:
   cronExpression: "*/30 * * * *"
   agent: ""
   agentPrompt: |
-    Perform a comprehensive health check of the Three Rivers Bank application:
+    Perform a read-only health check of the Three Rivers Bank backend and frontend Container Apps. Report the UTC window and distinguish observed failures from monitoring gaps.
 
-    1. Check the backend container app health:
-       - Query the /actuator/health endpoint status
-       - Check container restart count (alert if > 0 in last 15 min)
-       - Verify HTTP 2xx success rate (alert if < 95%)
-       - Check response time p95 (alert if > 2 seconds)
-       - Verify memory and CPU utilization
+    1. Check the backend:
+       - Confirm the active revision, ready replicas, and direct HTTPS /actuator/health status, including database and readiness; check /api/cards returns the expected five products.
+       - Check each replica's restartCount and the RestartCount metric over the last 15 minutes. RestartCount is cumulative: alert on an increase, not a nonzero historical count. Check CPU and memory.
+       - Query Azure Monitor Requests split by statusCodeCategory and statusCode. Report the counts and denominator alongside 2xx percentage; investigate <95% before calling it user impact. The backend GET / returns 404 by design, and ingress counts alone cannot attribute 404s to a path or client. Do not assume every 404 is a health probe or silently exclude it.
+       - Check request p95 against 2 seconds only when request-level duration telemetry is available. The Container Apps ResponseTime metric is an average, not p95; label any direct-probe p95 as a synthetic sample, not production p95. Report p95 as unavailable if no suitable request-level source exists.
 
-    2. Check the frontend container app health:
-       - Verify the app is serving responses
-       - Check HTTP error rates
-       - Verify the frontend can reach the backend API
+    2. Check the frontend:
+       - Confirm the active revision, ready replicas, restarts, root HTTPS response, and 4xx/5xx counts.
+       - Verify the served /config.js points to the live backend and that a frontend-origin CORS preflight and GET /api/cards succeed. This tests configuration and public access, not an actual browser session; state that limitation.
 
-    3. Check infrastructure health:
-       - Container App Environment status
-       - Log Analytics workspace connectivity
-       - Container Registry availability
+    3. Check infrastructure and logs:
+       - Confirm Container App Environment, Log Analytics workspace, and Container Registry provisioning states. Check workspace connectivity with a recent raw ContainerAppConsoleLogs_CL sample, then query errors by ContainerAppName_s; empty filtered results alone do not prove an error-free run. Inspect ContainerAppSystemLogs_CL separately for probe, scaling, and platform errors, recording their timestamps and affected apps.
+       - Check the registry /v2/ endpoint if needed; HTTP 401 without credentials proves network reachability only, not image-pull authorization or repository availability. Do not retry a registry command after an identity RBAC denial; report the limitation.
+       - If built-in health validation reports an unreachable backend, independently probe /actuator/health and /api/cards and check readiness before declaring an outage. Do not treat historical external-metrics API errors as current application errors.
 
-    4. If ANY issues are detected:
-       - Use the code-analyzer subagent to check for recent code changes
-         that may have caused the issue
-       - Use the incident-handler subagent to create a GitHub issue
-       - Include full root cause analysis in the issue
+    4. Escalate confirmed issues:
+       - Correlate symptoms, timing, blast radius, and trigger with both runtime telemetry and code/configuration changes. Use code-analyzer for suspected code defects and incident-handler for a confirmed incident; do not invent a root cause when request-path attribution is missing.
+       - Check existing GitHub issues before opening another. Issue #29 already tracks unattributed backend 404s and the missing p95/access telemetry; update or reference it rather than create a duplicate for that same monitoring gap.
+       - Summarize healthy checks, threshold breaches, monitoring limitations, and any escalation. Do not change production or schedule another monitoring loop.
