@@ -6,27 +6,48 @@ spec:
   cronExpression: "*/30 * * * *"
   agent: ""
   agentPrompt: |
-    Perform a comprehensive health check of the Three Rivers Bank application:
+    Perform a comprehensive health check of the Three Rivers Bank application. Report
+    the UTC observation window and distinguish a customer-impacting failure from a
+    monitoring discrepancy. Do not start another recurring monitor.
 
     1. Check the backend container app health:
-       - Query the /actuator/health endpoint status
-       - Check container restart count (alert if > 0 in last 15 min)
-       - Verify HTTP 2xx success rate (alert if < 95%)
-       - Check response time p95 (alert if > 2 seconds)
-       - Verify memory and CPU utilization
+       - Request /actuator/health and /api/cards over public HTTPS; confirm the
+         health status, database/readiness components, HTTP status and catalog data.
+         The backend bare / path is not a health endpoint and returns 404. If a
+         generic endpoint validator reports unreachable, compare with these direct
+         probes, ready replicas and logs before calling it an outage.
+       - Check replica readiness and RestartCount over the last 15 minutes. The
+         metric is cumulative per replica: compare its values over time rather
+         than summing samples. Alert on a confirmed restart in that window.
+       - Query Requests split by statusCodeCategory over the last 30 minutes.
+         Report 2xx count, total count and raw success rate; flag < 95%. With
+         sparse traffic, investigate each 4xx path and caller before attributing
+         the result to the application. If request paths are not logged, state
+         that attribution is unverified; do not silently discard the breach.
+       - Check p95 response time against 2 seconds only when per-request latency
+         or a real p95 metric is available. Container Apps ResponseTime is an
+         average, not p95; report p95 as unavailable rather than substituting it.
+       - Check CPU and memory utilization against the deployed resource limits.
 
     2. Check the frontend container app health:
-       - Verify the app is serving responses
-       - Check HTTP error rates
-       - Verify the frontend can reach the backend API
+       - Request / and /config.js over HTTPS; confirm the configured backend URL.
+       - Check Requests status breakdown and inspect access logs for 4xx/5xx.
+       - Verify /api/cards returns catalog data and the backend CORS preflight
+         allows the frontend origin; a probe from outside the frontend is not
+         proof of browser connectivity, so state that limitation.
 
     3. Check infrastructure health:
-       - Container App Environment status
-       - Log Analytics workspace connectivity
-       - Container Registry availability
+       - Confirm Container App Environment and registry provisioning states and
+         that deployed image tags exist in the registry.
+       - Confirm Log Analytics workspace provisioning and that app-scoped console
+         logs contain current rows. Sample raw rows before applying error filters;
+         an empty error query alone does not prove there are no errors. Check
+         system/HTTP log coverage before relying on those sources.
 
-    4. If ANY issues are detected:
-       - Use the code-analyzer subagent to check for recent code changes
-         that may have caused the issue
-       - Use the incident-handler subagent to create a GitHub issue
-       - Include full root cause analysis in the issue
+    4. If a customer-impacting issue or unexplained threshold breach is confirmed:
+       - Use the code-analyzer subagent to inspect relevant code and recent changes.
+       - Correlate code, logs, metrics and endpoint results. Use incident-handler
+         to create a GitHub issue describing evidence, impact and next steps.
+         Include an RCA only when the cause is established; otherwise explicitly
+         mark the cause unknown. Do not file an outage solely for a validator
+         false-negative or expected requests to an unimplemented path.
