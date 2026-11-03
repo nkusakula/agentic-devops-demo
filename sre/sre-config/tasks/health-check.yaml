@@ -46,8 +46,10 @@ spec:
 
     4. If a customer-impacting issue or unexplained threshold breach is confirmed:
        - Use the code-analyzer subagent to inspect relevant code and recent changes.
-       - Correlate code, logs, metrics and endpoint results. Use incident-handler
-         to create a GitHub issue describing evidence, impact and next steps.
+       - Correlate code, logs, metrics and endpoint results. Search open GitHub
+         issues for the same symptom before escalating: update a matching issue
+         with this run's evidence instead of creating a duplicate. Otherwise use
+         incident-handler to create an issue describing impact and next steps.
          Include an RCA only when the cause is established; otherwise explicitly
          mark the cause unknown. Do not file an outage solely for a validator
          false-negative or expected requests to an unimplemented path.
