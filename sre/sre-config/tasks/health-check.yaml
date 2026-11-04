@@ -9,24 +9,35 @@ spec:
     Perform a comprehensive health check of the Three Rivers Bank application:
 
     1. Check the backend container app health:
-       - Query the /actuator/health endpoint status
-       - Check container restart count (alert if > 0 in last 15 min)
-       - Verify HTTP 2xx success rate (alert if < 95%)
-       - Check response time p95 (alert if > 2 seconds)
-       - Verify memory and CPU utilization
+       - Probe /actuator/health and /api/cards directly; verify status UP and card data.
+         If endpoint validation disagrees, compare direct HTTPS results and ready replicas
+         before declaring an outage. A bare / 404 is not a health endpoint failure.
+       - Compare the cumulative RestartCount at both ends of the last 15 minutes;
+         alert on an increase, not a nonzero historical count.
+       - Report 2xx / total Requests and the sample size for the last 30 minutes;
+         flag a rate below 95%, but identify paths and callers before assigning
+         4xx cause or user impact. Check 5xx separately.
+       - Alert if p95 response time exceeds 2 seconds only when request-level
+         latency telemetry supports a percentile. ResponseTime is an average,
+         not p95; otherwise report p95 as unavailable.
+       - Verify memory and CPU utilization and ready replica counts.
 
     2. Check the frontend container app health:
-       - Verify the app is serving responses
-       - Check HTTP error rates
-       - Verify the frontend can reach the backend API
+       - Probe the frontend root and inspect scoped HTTP failures.
+       - Verify the configured frontend origin is allowed by the backend API
+         using a CORS preflight; check the functional backend catalog separately.
 
     3. Check infrastructure health:
-       - Container App Environment status
-       - Log Analytics workspace connectivity
-       - Container Registry availability
+       - Check Container App Environment provisioning state.
+       - Query recent scoped rows in Log Analytics to prove ingestion; sample raw
+         logs before treating an empty error search as zero errors.
+       - Check registry provisioning and its /v2/ authentication challenge;
+         do not equate a 401 challenge with registry unavailability.
 
     4. If ANY issues are detected:
-       - Use the code-analyzer subagent to check for recent code changes
-         that may have caused the issue
-       - Use the incident-handler subagent to create a GitHub issue
-       - Include full root cause analysis in the issue
+       - Use the code-analyzer subagent to check for relevant recent code changes.
+       - Use the incident-handler subagent to update a matching GitHub issue or
+         create one if needed; avoid duplicates and do not claim an outage from
+         a low-sample 4xx rate without evidence of affected user requests.
+       - Include the evidence, window, impact, and root cause if established;
+         otherwise state what cannot be correlated and what would establish RCA.
