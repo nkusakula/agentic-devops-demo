@@ -43,6 +43,12 @@ spec:
          logs contain current rows. Sample raw rows before applying error filters;
          an empty error query alone does not prove there are no errors. Check
          system/HTTP log coverage before relying on those sources.
+       - Query ContainerAppConsoleLogs_CL at workspace scope using
+         ContainerAppName_s; resource-scoped queries may miss rows when
+         _ResourceId is empty. For frontend Nginx access logs, match the status
+         following the quoted request, not the response-byte count. If the HTTP
+         log table is unavailable, retain the raw 2xx breach and mark historical
+         404 paths and callers unknown rather than inferring them from a new probe.
 
     4. If a customer-impacting issue or unexplained threshold breach is confirmed:
        - Use the code-analyzer subagent to inspect relevant code and recent changes.
