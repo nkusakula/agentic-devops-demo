@@ -9,11 +9,16 @@ spec:
     Perform a comprehensive health check of the Three Rivers Bank application:
 
     1. Check the backend container app health:
-       - Query the /actuator/health endpoint status
-       - Check container restart count (alert if > 0 in last 15 min)
-       - Verify HTTP 2xx success rate (alert if < 95%)
-       - Check response time p95 (alert if > 2 seconds)
-       - Verify memory and CPU utilization
+       - Probe HTTPS /actuator/health and /api/cards; confirm health components and card data.
+       - Check RestartCount over the last 15 minutes; it is cumulative per replica,
+         so alert on an increase or new-replica restart, not an unchanged nonzero value.
+       - Count Requests by statusCodeCategory over the last completed 30 minutes;
+         report the 2xx numerator, all-status denominator, and rate (alert if < 95%).
+         Investigate 4xx paths/callers before treating a low-volume breach as an outage.
+       - Check response-time p95 against 2 seconds only with request-level duration
+         telemetry; Azure ResponseTime is an aggregate average, not p95. If request
+         logs/durations are missing, report p95 as unavailable, not as passing.
+       - Verify memory and CPU utilization against the configured limits.
 
     2. Check the frontend container app health:
        - Verify the app is serving responses
@@ -25,7 +30,15 @@ spec:
        - Log Analytics workspace connectivity
        - Container Registry availability
 
-    4. If ANY issues are detected:
+    4. Classify evidence before escalation:
+       - If a health validator says the backend endpoint is unreachable, verify
+         /actuator/health directly; a 404 on backend / is not a failed health check.
+       - Confirm console-log coverage before interpreting zero errors. If HTTP
+         request logs are absent, do not attribute 4xx to a path or caller.
+       - Distinguish an observed metric-threshold breach from confirmed user impact;
+         report uncorrelated signals and missing telemetry explicitly.
+
+    5. If an actionable application issue is confirmed:
        - Use the code-analyzer subagent to check for recent code changes
          that may have caused the issue
        - Use the incident-handler subagent to create a GitHub issue
