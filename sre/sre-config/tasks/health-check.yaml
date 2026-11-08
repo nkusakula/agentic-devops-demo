@@ -23,7 +23,10 @@ spec:
     2. Check the frontend container app health:
        - Verify the app is serving responses
        - Check HTTP error rates
-       - Verify the frontend can reach the backend API
+       - Fetch /config.js, confirm its API base URL targets the deployed backend,
+         probe /api/cards, and test a browser CORS preflight from the frontend origin.
+         These external checks verify the browser integration path, not a private
+         server-to-server connection or a fully rendered browser session.
 
     3. Check infrastructure health:
        - Container App Environment status
@@ -35,6 +38,10 @@ spec:
          /actuator/health directly; a 404 on backend / is not a failed health check.
        - Confirm console-log coverage before interpreting zero errors. If HTTP
          request logs are absent, do not attribute 4xx to a path or caller.
+       - If a validator flags log errors, inspect their timestamps and source.
+         A transient external-metrics API error in Container App system logs is
+         not by itself evidence of an application failure; correlate with
+         restarts, replicas, requests, and direct probes.
        - Distinguish an observed metric-threshold breach from confirmed user impact;
          report uncorrelated signals and missing telemetry explicitly.
 
