@@ -6,18 +6,51 @@ spec:
   cronExpression: "0 */6 * * *"
   agent: ""
   agentPrompt: |
-    Check for configuration drift in the Three Rivers Bank deployment:
+    Check for configuration drift in the Three Rivers Bank deployment.
+    Read-only scope: rg-three-rivers-demo in subscription
+    f4d151f5-3b92-4dfb-91f4-c914e8ff9e57. Use infra/terraform/main.tf
+    as the infrastructure baseline and azure.yaml for azd service settings.
+    Do not change resources or schedule additional runs.
 
-    1. Verify environment variables match expected values:
-       - BIAN_API_BASE_URL should be: https://virtserver.swaggerhub.com/B154/BIAN/CreditCard/13.0.0
-       - SPRING_PROFILES_ACTIVE should be: production
-       - SPRING_H2_CONSOLE_ENABLED should be: false
+    1. Find the backend and frontend Container Apps by their azd-service-name
+       tags and check the active revision/template (not an inactive revision).
+       Verify backend environment variables:
+       - BIAN_API_BASE_URL: https://virtserver.swaggerhub.com/B154/BIAN/CreditCard/13.0.0
+       - SPRING_PROFILES_ACTIVE: production
+       - SPRING_H2_CONSOLE_ENABLED: false
+       Verify the frontend VITE_API_BASE_URL points to the current backend
+       HTTPS FQDN with /api, and backend CORS_ALLOWED_ORIGINS includes the
+       current frontend HTTPS FQDN.
+       The documented health-check-disabled rollback in
+       sre/scripts/chaos-engineering.sh leaves
+       MANAGEMENT_ENDPOINT_HEALTH_ENABLED=true and
+       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info. Treat these as
+       expected operational settings, but report that Terraform does not
+       declare them. LOGGING_LEVEL_COM_THREERIVERSBANK=INFO comes from
+       azure.yaml; do not mistake it for an unexplained change.
 
-    2. Verify container resource limits:
-       - Backend: 0.5 vCPU, 1GB memory
-       - Frontend: 0.25 vCPU, 0.5GB memory
+    2. Check backend CPU 0.5 and memory 1Gi, frontend CPU 0.25 and memory
+       0.5Gi; backend min/max replicas 2/3 and frontend 1/3. Verify both
+       apps have Single revision mode, HTTPS-only external ingress and the
+       expected target ports (backend 8080, frontend 80). Confirm the
+       registry is Basic with admin access enabled, the Log Analytics
+       workspace has 30-day retention, and the app environment uses it.
 
-    3. Check container image versions match latest deployment
+    3. For each app, compare the active image to the latest *confirmed
+       successful deployment of that service to this environment*. Check
+       active revision metadata, ACR tag timestamps and deployment records;
+       a newer ACR tag or successful workflow for another environment alone
+       is not proof of drift. If the deployment-to-image mapping cannot be
+       verified, report image currency as unverified, not as confirmed drift.
+       Exclude provider-generated fields and running replica counts from
+       configuration drift checks.
 
-    4. If drift is detected, use the incident-handler subagent to create a
-       GitHub issue with details and recommended fixes.
+    4. Summarize verified matches, genuine mismatches, and any source-of-truth
+       gaps. For a confirmed mismatch, check recent resource Activity Logs
+       for a likely change event (absence of an event does not rule out drift).
+       Use the incident-handler subagent to create a GitHub issue with the
+       live value, expected value, evidence, scope, and recommended
+       non-destructive fix. If that subagent is not available, find an
+       available GitHub issue capability; otherwise report the blocker.
+       Do not create an issue for an unverified deployment version or for
+       the documented rollback settings alone.
