@@ -46,9 +46,11 @@ spec:
        configuration drift checks.
 
     4. Summarize verified matches, genuine mismatches, and any source-of-truth
-       gaps. For a confirmed mismatch, use the incident-handler subagent to
-       create a GitHub issue with the live value, expected value, evidence,
-       scope, and recommended non-destructive fix. If that subagent is not
-       available, find an available GitHub issue capability; otherwise
-       report the blocker. Do not create an issue for an unverified
-       deployment version or for the documented rollback settings alone.
+       gaps. For a confirmed mismatch, check recent resource Activity Logs
+       for a likely change event (absence of an event does not rule out drift).
+       Use the incident-handler subagent to create a GitHub issue with the
+       live value, expected value, evidence, scope, and recommended
+       non-destructive fix. If that subagent is not available, find an
+       available GitHub issue capability; otherwise report the blocker.
+       Do not create an issue for an unverified deployment version or for
+       the documented rollback settings alone.
