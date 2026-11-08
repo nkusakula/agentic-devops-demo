@@ -9,24 +9,36 @@ spec:
     Perform a comprehensive health check of the Three Rivers Bank application:
 
     1. Check the backend container app health:
-       - Query the /actuator/health endpoint status
-       - Check container restart count (alert if > 0 in last 15 min)
-       - Verify HTTP 2xx success rate (alert if < 95%)
-       - Check response time p95 (alert if > 2 seconds)
+       - Probe /actuator/health and /api/cards over public HTTPS; verify the catalog returns cards
+       - Check replica readiness and whether restart counters increased in the last 15 min
+         (RestartCount is cumulative per replica; a nonzero value alone is not a new restart)
+       - Calculate HTTP 2xx rate from 2xx and total Requests over the last 30 min;
+         report both counts and alert if the rate is < 95%. Separate 4xx from 5xx.
+         With sparse traffic, do not infer customer impact from the ratio alone;
+         use request paths/callers where logs permit, or mark attribution unknown.
+       - Check response-time p95 against 2 seconds only with request-level latency
+         samples; Azure Container Apps ResponseTime is an average, not p95.
+         If request-level data is missing, report p95 as unavailable.
        - Verify memory and CPU utilization
 
     2. Check the frontend container app health:
        - Verify the app is serving responses
        - Check HTTP error rates
-       - Verify the frontend can reach the backend API
+       - Verify browser access to the backend API with a catalog GET and
+         frontend-origin CORS preflight
 
     3. Check infrastructure health:
        - Container App Environment status
-       - Log Analytics workspace connectivity
-       - Container Registry availability
+       - Log Analytics workspace connectivity; sample raw rows before interpreting
+         empty error searches, and distinguish absent HTTP logs from zero errors
+       - Container Registry availability; distinguish provisioning state from
+         demonstrated image-pull or data-plane availability
 
     4. If ANY issues are detected:
        - Use the code-analyzer subagent to check for recent code changes
          that may have caused the issue
-       - Use the incident-handler subagent to create a GitHub issue
-       - Include full root cause analysis in the issue
+       - Use the incident-handler subagent to update a matching GitHub issue
+         or create one if none exists
+       - Include an evidence-backed root cause analysis when possible. If
+         request attribution or other evidence is missing, explicitly mark
+         root cause and customer impact unconfirmed and list how to verify them.
