@@ -16,7 +16,9 @@ spec:
          Do not treat a validator's EndpointReachable=False as an outage if
          direct probes work; report the disagreement separately.
        - Confirm the active revision receives 100% traffic and has ready
-         replicas. Check RestartCount for the last 15 minutes; alert on an
+         replicas. Check RestartCount for the last 15 minutes without a
+         dimension filter first; a podName wildcard may return no series.
+         Compare cumulative samples and replica creation times; alert on an
          observed increase or restart event, not an old cumulative count.
        - Split Requests by statusCodeCategory. Report 2xx / all responses and
          the denominator; flag <95%, but distinguish low-volume 404s from
@@ -30,6 +32,10 @@ spec:
     2. Check the frontend container app health:
        - Probe the public frontend root and confirm it serves HTML.
        - Split Requests by statusCodeCategory to report 4xx and 5xx counts.
+         Compare those aggregate counts with scoped access logs: identify
+         scanner requests by their logged user agent and method/path before
+         separating them from user-facing failures. If logs cannot explain
+         an aggregate error, keep it as uncorrelated rather than dismiss it.
        - Fetch frontend /config.js, verify its API base targets the deployed
          backend, probe /api/cards, and test CORS with the frontend origin.
 
