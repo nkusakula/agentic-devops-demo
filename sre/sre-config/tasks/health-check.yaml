@@ -6,27 +6,53 @@ spec:
   cronExpression: "*/30 * * * *"
   agent: ""
   agentPrompt: |
-    Perform a comprehensive health check of the Three Rivers Bank application:
+    Perform a comprehensive health check of the Three Rivers Bank application.
+    Use the prior 30 minutes in UTC for request and resource metrics, and state
+    the exact window and last available metric bucket (ingestion may lag).
 
     1. Check the backend container app health:
-       - Query the /actuator/health endpoint status
-       - Check container restart count (alert if > 0 in last 15 min)
-       - Verify HTTP 2xx success rate (alert if < 95%)
-       - Check response time p95 (alert if > 2 seconds)
-       - Verify memory and CPU utilization
+       - Probe the public /actuator/health and /api/cards paths over HTTPS.
+         Confirm health is UP and the catalog returns the expected five cards.
+         Do not treat a validator's EndpointReachable=False as an outage if
+         direct probes work; report the disagreement separately.
+       - Confirm the active revision receives 100% traffic and has ready
+         replicas. Check RestartCount for the last 15 minutes without a
+         dimension filter first; a podName wildcard may return no series.
+         Compare cumulative samples and replica creation times; alert on an
+         observed increase or restart event, not an old cumulative count.
+       - Split Requests by statusCodeCategory. Report 2xx / all responses and
+         the denominator; flag <95%, but distinguish low-volume 404s from
+         confirmed user failures. Never infer a 404 path from aggregate counts.
+       - Check p95 response time against 2 seconds only when request-level
+         duration telemetry or a histogram supports a true percentile.
+         ResponseTime is an average per bucket, not p95; if only that metric
+         exists, report p95 unavailable rather than pass or fail.
+       - Report CPU and memory utilization against configured limits.
 
     2. Check the frontend container app health:
-       - Verify the app is serving responses
-       - Check HTTP error rates
-       - Verify the frontend can reach the backend API
+       - Probe the public frontend root and confirm it serves HTML.
+       - Split Requests by statusCodeCategory to report 4xx and 5xx counts.
+         Compare those aggregate counts with scoped access logs: identify
+         scanner requests by their logged user agent and method/path before
+         separating them from user-facing failures. If logs cannot explain
+         an aggregate error, keep it as uncorrelated rather than dismiss it.
+       - Fetch frontend /config.js, verify its API base targets the deployed
+         backend, probe /api/cards, and test CORS with the frontend origin.
 
     3. Check infrastructure health:
-       - Container App Environment status
-       - Log Analytics workspace connectivity
-       - Container Registry availability
+       - Confirm Container App Environment provisioning succeeded.
+       - Verify Log Analytics connectivity with a raw row sample, then scope
+         error checks to both ContainerAppName_s values. If a table is empty,
+         state the telemetry gap; do not equate it with zero failures.
+       - Confirm Container Registry provisioning; distinguish control-plane
+         availability from an actual image pull or registry data-plane test.
 
-    4. If ANY issues are detected:
-       - Use the code-analyzer subagent to check for recent code changes
-         that may have caused the issue
-       - Use the incident-handler subagent to create a GitHub issue
-       - Include full root cause analysis in the issue
+    4. If issues are detected:
+       - Correlate endpoint probes, revisions, metrics, and scoped logs; use
+         code-analyzer for recent code changes when an application issue is
+         plausible. Do not assert an unobserved root cause or user impact.
+       - Search open GitHub issues before using incident-handler to create an
+         issue; update or reference an existing matching issue instead of
+         creating a duplicate. For a new issue include evidence, time window,
+         impact, known root cause if proven, otherwise explicit unknowns and
+         next diagnostic steps. Do not invent a full root cause analysis.
