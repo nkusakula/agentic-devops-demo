@@ -6,27 +6,50 @@ spec:
   cronExpression: "*/30 * * * *"
   agent: ""
   agentPrompt: |
-    Perform a comprehensive health check of the Three Rivers Bank application:
+    Perform a read-only, 30-minute health check of the Three Rivers Bank
+    backend and frontend Container Apps. Timestamp all results in UTC. Discover
+    the current app FQDNs and resource IDs rather than relying on saved ones.
 
-    1. Check the backend container app health:
-       - Query the /actuator/health endpoint status
-       - Check container restart count (alert if > 0 in last 15 min)
-       - Verify HTTP 2xx success rate (alert if < 95%)
-       - Check response time p95 (alert if > 2 seconds)
-       - Verify memory and CPU utilization
+    1. Backend (ca-three-rivers-demo-backend):
+       - GET the public /actuator/health and /api/cards endpoints. Check that
+         health is UP (including db and readiness) and the catalog has data.
+       - Confirm active revision, ready replicas, traffic allocation and
+         provisioning state. Independently probe HTTPS if a health validator
+         says EndpointReachable=False; do not call it an outage on that flag alone.
+       - Alert on any restart in the last 15 minutes. RestartCount is cumulative
+         per replica: compare samples for the same pod, not the absolute value.
+       - Split Azure Requests by statusCodeCategory for the last 30 minutes;
+         report counts and 2xx / all responses. Flag a rate below 95%,
+         including the actual status code, route and caller when available.
+         Low-volume 404s alone do not prove a catalog outage. Do not attribute
+         a historical 404 to / merely because a separate GET / returns 404.
+       - Check CPU and memory utilization and response-time p95 (alert if > 2s).
+         ResponseTime is an average, not p95: use request-level telemetry for
+         p95 or explicitly report p95 unavailable; never substitute an average.
 
-    2. Check the frontend container app health:
-       - Verify the app is serving responses
-       - Check HTTP error rates
-       - Verify the frontend can reach the backend API
+    2. Frontend (ca-three-rivers-demo-frontend):
+       - GET the public root page. Check the active revision, ready replicas,
+         restarts, HTTP error counts, CPU and memory as above.
+       - GET the backend catalog and test a frontend-origin CORS preflight
+         against /api/cards. These probes check the browser API path but do
+         not prove that a full browser session succeeded.
 
-    3. Check infrastructure health:
-       - Container App Environment status
-       - Log Analytics workspace connectivity
-       - Container Registry availability
+    3. Infrastructure and evidence:
+       - Check Container App Environment, Log Analytics workspace and Container
+         Registry provisioning states. Successfully query current workspace
+         console logs; registry provisioning alone does not prove image pulls.
+       - Sample raw logs first, then filter by actual app name and observed
+         format. Confirm a log source has rows before interpreting zero errors.
+         If HTTP request logs are absent, say the 4xx path/caller is unknown.
+       - Correlate any failures with system logs, deployments/activity and
+         source code. Separate verified impact from hypotheses and monitor noise.
 
-    4. If ANY issues are detected:
-       - Use the code-analyzer subagent to check for recent code changes
-         that may have caused the issue
-       - Use the incident-handler subagent to create a GitHub issue
-       - Include full root cause analysis in the issue
+    4. If a failure or threshold breach is found:
+       - Use code-analyzer to investigate relevant code and recent changes.
+       - For a confirmed issue with evidence-based root cause and impact,
+         use incident-handler to create a GitHub issue with the RCA.
+       - If correlation or root cause is unavailable, report the precise
+         unresolved signal and missing telemetry; do not invent an RCA or
+         create an outage issue from a validator flag or isolated 404 alone.
+       - Report each threshold, sample window and any check that could not be
+         measured. Do not modify production as part of this health check.
