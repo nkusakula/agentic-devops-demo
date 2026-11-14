@@ -27,10 +27,13 @@ spec:
        - Frontend: 0.25 vCPU, 0.5Gi memory
 
     3. Check both active revisions' image references against deployment records
-       when available. If records are unavailable, compare each image tag with
-       the newest tag in its ACR repository and report this as a registry check,
-       NOT proof that it is the latest intended deployment. Exclude placeholder
-       Terraform image defaults when azd deploy supplies versioned images.
+       when available. Correlate each record's environment, image tag and time
+       with its active revision; a successful CI run that predates the image push
+       does not prove that it deployed that image (local azd deploy is possible).
+       If no record correlates, compare each image tag with the newest tag in its
+       ACR repository and report this as a registry check, NOT proof that it is
+       the latest intended deployment. Exclude placeholder Terraform image
+       defaults when azd deploy supplies versioned images.
 
     4. Report matches, confirmed drift, and unverified checks separately, with
        the actual and expected values. Do not infer no drift from a failed query.
